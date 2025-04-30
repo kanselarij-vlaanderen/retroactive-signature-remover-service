@@ -1,6 +1,6 @@
 import fs from 'fs';
 import readline from 'readline';
-import { app, query, update, errorHandler, sparqlEscapeUri, sparqlEscapeDateTime } from 'mu';
+import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
 import { readMuFile } from './lib/file';
 import isFileSigned from './lib/signed-file';
 
