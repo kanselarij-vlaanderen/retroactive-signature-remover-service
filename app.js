@@ -126,7 +126,7 @@ app.post('/', async function (req, res) {
         signedUris.push(uri);
       }
     } catch (e) {
-      continue;
+      console.error(e);
     }
   }
 
