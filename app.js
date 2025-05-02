@@ -23,11 +23,15 @@ class PieceCache {
 
       const oldUris = await this._readPiecesFromCache();
 
-      const result = this._getPiecesFromDb(lastCreated);
+      const result = await this._getPiecesFromDb(lastCreated);
       const newUris = result.uris;
       lastCreated = result.lastCreated ?? lastCreated;
 
-      uris = oldUris.concat(newUris);
+      if (newUris?.length) {
+        uris = oldUris.concat(newUris);
+      } else {
+        uris = oldUris;
+      }
     } else {
       const result = await this._getPiecesFromDb(this.DATE_START_KALEIDOS);
       uris = result.uris;
@@ -56,7 +60,7 @@ class PieceCache {
 
   _writePiecesToCache(uris, lastCreated) {
     if (uris?.length) {
-      const stream = fs.createWriteStream(this.cachePath, { flags: 'a' });
+      const stream = fs.createWriteStream(this.cachePath, { flags: 'w' });
       for (const uri of uris) {
         stream.write(`${uri}\n`);
       }
@@ -97,7 +101,7 @@ LIMIT ${this.BATCH_SIZE}`;
 
     let uris = [];
     let lastCreated = startDate ?? this.DATE_START_KALEIDOS;
-    do {
+    while (true) {
       const queryString = paginatedQuery(lastCreated);
       const response = await query(queryString, { sudo: true });
 
@@ -110,7 +114,7 @@ LIMIT ${this.BATCH_SIZE}`;
 
       uris = uris.concat(bindings.map((b) => b["file"]["value"]));
       lastCreated = new Date(bindings[bindings.length - 1]["created"]["value"]);
-    } while (true);
+    }
 
     return { uris, lastCreated };
   }
@@ -132,13 +136,13 @@ app.post('/', async function (req, res) {
     // Find out which files are signed
     try {
       if (isMuFileTooLarge(uri)) {
-        // tooLargeUris.push(uri);
+        tooLargeUris.push(uri);
         continue;
       }
 
-      // if (isFileSigned(uri)) {
-      //   // signedUris.push(uri);
-      // }
+      if (isFileSigned(uri)) {
+        signedUris.push(uri);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -148,7 +152,7 @@ app.post('/', async function (req, res) {
   const signedFilesPath = '/cache/signed-uris';
   if (signedUris?.length) {
     console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
-    const stream = fs.createWriteStream(signedFilesPath, { flags: 'a' });
+    const stream = fs.createWriteStream(signedFilesPath, { flags: 'w' });
     for (const uri of signedUris) {
       stream.write(`${uri}\n`);
     }
@@ -158,7 +162,7 @@ app.post('/', async function (req, res) {
   const tooLargePath = '/cache/too-large-uris';
   if (tooLargeUris?.length) {
     console.log(`Found ${tooLargeUris.length} files that were too large and weren't processed, storing in ${tooLargePath}. Manual checks are required for these.`);
-    const stream = fs.createWriteStream(tooLargePath, { flags: 'a' });
+    const stream = fs.createWriteStream(tooLargePath, { flags: 'w' });
     for (const uri of tooLargeUris) {
       stream.write(`${uri}\n`);
     }
