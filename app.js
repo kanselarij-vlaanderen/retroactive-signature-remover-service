@@ -72,13 +72,15 @@ PREFIX pav: <http://purl.org/pav/>
 PREFIX dct: <http://purl.org/dc/terms/>
 PREFIX sign: <http://mu.semte.ch/vocabularies/ext/handtekenen/>
 PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX nie: <http://www.semanticdesktop.org/ontologies/2007/01/19/nie#>
 
-SELECT DISTINCT ?piece ?file ?created
+SELECT DISTINCT ?file ?created
 WHERE {
   GRAPH <http://mu.semte.ch/graphs/organizations/kanselarij> {
     ?piece a dossier:Stuk ;
-      prov:value ?file ;
+      prov:value ?virtualFile ;
       dct:created ?created .
+    ?file nie:dataSource ?virtualFile .
     FILTER EXISTS { ?serie dossier:Collectie.bestaatUit ?piece }
     FILTER NOT EXISTS { ?piece sign:ongetekendStuk ?unsignedPiece }
 
