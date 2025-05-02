@@ -25,13 +25,9 @@ class PieceCache {
 
       const result = await this._getPiecesFromDb(lastCreated);
       const newUris = result.uris;
-      lastCreated = result.lastCreated ?? lastCreated;
 
-      if (newUris?.length) {
-        uris = oldUris.concat(newUris);
-      } else {
-        uris = oldUris;
-      }
+      uris = oldUris.concat(newUris);
+      lastCreated = result.lastCreated ?? lastCreated;
     } else {
       const result = await this._getPiecesFromDb(this.DATE_START_KALEIDOS);
       uris = result.uris;
@@ -131,7 +127,7 @@ app.post('/', async function (req, res) {
   const signedUris = [];
   const tooLargeUris = [];
 
-  v8.setFlagsFromString('--trace-gc');
+  // v8.setFlagsFromString('--trace-gc');
   for (const uri of uris) {
     // Find out which files are signed
     try {
@@ -147,7 +143,7 @@ app.post('/', async function (req, res) {
       console.error(e);
     }
   }
-  v8.setFlagsFromString('--notrace-gc');
+  // v8.setFlagsFromString('--notrace-gc');
 
   const signedFilesPath = '/cache/signed-uris';
   if (signedUris?.length) {
