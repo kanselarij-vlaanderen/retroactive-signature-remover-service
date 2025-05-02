@@ -47,7 +47,9 @@ class PieceCache {
     });
 
     for await (const line of rl) {
-      uris.push(line);
+      if (line) {
+        uris.push(line);
+      }
     }
     return uris;
   }
@@ -120,7 +122,7 @@ app.post('/', async function (req, res) {
 
   console.log(`Found ${uris.length} files, checking which ones are signed...`);
 
-  console.log(uris[uris.length - 1]);
+  console.log(uris.slice(uris.length - 3));
 
   const signedUris = [];
   const tooLargeUris = [];
@@ -144,8 +146,8 @@ app.post('/', async function (req, res) {
   v8.setFlagsFromString('--notrace-gc');
 
   const signedFilesPath = '/cache/signed-uris';
-  console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
   if (signedUris?.length) {
+    console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
     const stream = fs.createWriteStream(signedFilesPath, { flags: 'a' });
     for (const uri of signedUris) {
       stream.write(`${uri}\n`);
@@ -154,8 +156,8 @@ app.post('/', async function (req, res) {
   }
 
   const tooLargePath = '/cache/too-large-uris';
-  console.log(`Found ${tooLargeUris.length} files that were too large and weren't processed, storing in ${tooLargePath}. Manual checks are required for these.`);
   if (tooLargeUris?.length) {
+    console.log(`Found ${tooLargeUris.length} files that were too large and weren't processed, storing in ${tooLargePath}. Manual checks are required for these.`);
     const stream = fs.createWriteStream(tooLargePath, { flags: 'a' });
     for (const uri of tooLargeUris) {
       stream.write(`${uri}\n`);
