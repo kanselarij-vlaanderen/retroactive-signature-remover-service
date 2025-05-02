@@ -3,6 +3,7 @@ import readline from 'readline';
 import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
 import { isMuFileTooLarge } from './lib/file';
 import isFileSigned from './lib/signed-file';
+import v8 from 'v8';
 
 class PieceCache {
   DATE_START_KALEIDOS = new Date("2019-10-02");
@@ -122,6 +123,7 @@ app.post('/', async function (req, res) {
   const signedUris = [];
   const tooLargeUris = [];
 
+  v8.setFlagsFromString('--trace-gc');
   for (const uri of uris) {
     // Find out which files are signed
     try {
@@ -137,6 +139,7 @@ app.post('/', async function (req, res) {
       console.error(e);
     }
   }
+  v8.setFlagsFromString('--notrace-gc');
 
   const signedFilesPath = '/cache/signed-uris';
   console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
