@@ -132,9 +132,9 @@ app.post('/', async function (req, res) {
         continue;
       }
 
-      if (isFileSigned(uri)) {
-        // signedUris.push(uri);
-      }
+      // if (isFileSigned(uri)) {
+      //   // signedUris.push(uri);
+      // }
     } catch (e) {
       console.error(e);
     }
