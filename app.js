@@ -1,7 +1,7 @@
 import fs from 'fs';
 import readline from 'readline';
 import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
-import { readMuFile } from './lib/file';
+import { isMuFileTooLarge, readMuFile } from './lib/file';
 import isFileSigned from './lib/signed-file';
 
 class PieceCache {
@@ -117,10 +117,18 @@ const pieceCache = new PieceCache();
 app.post('/', async function (req, res) {
   const uris = await pieceCache.getPieceUris();
 
+  console.log(`Found ${uris.length} files, checking which ones are signed...`);
+
   const signedUris = [];
+  const tooLargeUris = [];
   for (const uri of uris) {
     // Find out which files are signed
     try {
+      if (isMuFileTooLarge(uri)) {
+        tooLargeUris.push(uri);
+        continue;
+      }
+
       const pdfBytes = readMuFile(uri);
       if (isFileSigned(pdfBytes)) {
         signedUris.push(uri);
@@ -130,12 +138,21 @@ app.post('/', async function (req, res) {
     }
   }
 
-  console.debug(signedUris);
-
-
+  const signedFilesPath = '/cache/signed-uris';
+  console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
   if (signedUris?.length) {
-    const stream = fs.createWriteStream('/cache/signed-uris', { flags: 'a' });
+    const stream = fs.createWriteStream(signedFilesPath, { flags: 'a' });
     for (const uri of signedUris) {
+      stream.write(`${uri}\n`);
+    }
+    stream.close();
+  }
+
+  const tooLargePath = '/cache/too-large-uris';
+  console.log(`Found ${tooLargeUris.length} files that were too large and weren't processed, storing in ${tooLargePath}. Manual checks are required for these.`);
+  if (tooLargeUris?.length) {
+    const stream = fs.createWriteStream(tooLargePath, { flags: 'a' });
+    for (const uri of tooLargeUris) {
       stream.write(`${uri}\n`);
     }
     stream.close();
