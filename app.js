@@ -57,7 +57,7 @@ class PieceCache {
   _writePiecesToCache(uris, lastCreated) {
     console.debug(uris.length);
     if (uris?.length) {
-      const stream = fs.createWriteStream(this.cachePath, { flags: 'w+' });
+      const stream = fs.createWriteStream(this.cachePath);
       for (const uri of uris) {
         stream.write(`${uri}\n`);
       }
@@ -149,7 +149,7 @@ app.post('/', async function (req, res) {
   const signedFilesPath = '/cache/signed-uris';
   if (signedUris?.length) {
     console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
-    const stream = fs.createWriteStream(signedFilesPath, { flags: 'w+' });
+    const stream = fs.createWriteStream(signedFilesPath);
     for (const uri of signedUris) {
       stream.write(`${uri}\n`);
     }
@@ -159,7 +159,7 @@ app.post('/', async function (req, res) {
   const tooLargePath = '/cache/too-large-uris';
   if (tooLargeUris?.length) {
     console.log(`Found ${tooLargeUris.length} files that were too large and weren't processed, storing in ${tooLargePath}. Manual checks are required for these.`);
-    const stream = fs.createWriteStream(tooLargePath, { flags: 'w+' });
+    const stream = fs.createWriteStream(tooLargePath);
     for (const uri of tooLargeUris) {
       stream.write(`${uri}\n`);
     }
