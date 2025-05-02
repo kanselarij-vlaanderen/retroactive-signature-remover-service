@@ -57,11 +57,10 @@ class PieceCache {
   _writePiecesToCache(uris, lastCreated) {
     console.debug(uris.length);
     if (uris?.length) {
-      const stream = fs.createWriteStream(this.cachePath);
+      fs.writeFileSync(this.cachePath, '');
       for (const uri of uris) {
-        stream.write(`${uri}\n`);
+        fs.appendFileSync(this.cachePath, `${uri}\n`);
       }
-      stream.close();
     }
 
     if (lastCreated) {
