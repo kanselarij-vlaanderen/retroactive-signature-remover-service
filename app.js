@@ -128,7 +128,7 @@ app.post('/', async function (req, res) {
   const signedUris = [];
   const tooLargeUris = [];
 
-  v8.setFlagsFromString('--trace-gc');
+  // v8.setFlagsFromString('--trace-gc');
   for (const uri of uris) {
     // Find out which files are signed
     try {
@@ -146,18 +146,19 @@ app.post('/', async function (req, res) {
       const memoryUsage = process.memoryUsage();
       const memoryUsagePrc =
         (memoryUsage.heapUsed / v8.getHeapStatistics().heap_size_limit) * 100;
+      console.log("consumed already ", memoryUsagePrc, "% of memory");
       if (memoryUsagePrc > 70) {
         console.log(
           "use more than 70% memory, wait a lil bit to allow gc to cleanup stuff",
         );
-        await new Promise((r) => setTimeout(r, 5000));
+        await new Promise((r) => setTimeout(r, 20_000));
       }
       // end optimization
     } catch (e) {
       console.error(e);
     }
   }
-  v8.setFlagsFromString('--notrace-gc');
+  // v8.setFlagsFromString('--notrace-gc');
 
   const signedFilesPath = '/cache/signed-uris';
   if (signedUris?.length) {
