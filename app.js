@@ -128,12 +128,12 @@ app.post('/', async function (req, res) {
     // Find out which files are signed
     try {
       if (isMuFileTooLarge(uri)) {
-        tooLargeUris.push(uri);
+        // tooLargeUris.push(uri);
         continue;
       }
 
       if (isFileSigned(uri)) {
-        signedUris.push(uri);
+        // signedUris.push(uri);
       }
     } catch (e) {
       console.error(e);
