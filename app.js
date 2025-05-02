@@ -4,6 +4,7 @@ import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
 import { isMuFileTooLarge } from './lib/file';
 import isFileSigned from './lib/signed-file';
 import v8 from 'v8';
+import process from 'process';
 
 class PieceCache {
   DATE_START_KALEIDOS = new Date("2019-10-02");
@@ -127,7 +128,7 @@ app.post('/', async function (req, res) {
   const signedUris = [];
   const tooLargeUris = [];
 
-  // v8.setFlagsFromString('--trace-gc');
+  v8.setFlagsFromString('--trace-gc');
   for (const uri of uris) {
     // Find out which files are signed
     try {
@@ -139,11 +140,24 @@ app.post('/', async function (req, res) {
       if (isFileSigned(uri)) {
         signedUris.push(uri);
       }
+
+      // optimization
+      // give a chance for  gc to do its thing in case memory usage >= 70%
+      const memoryUsage = process.memoryUsage();
+      const memoryUsagePrc =
+        (memoryUsage.heapUsed / v8.getHeapStatistics().heap_size_limit) * 100;
+      if (memoryUsagePrc > 70) {
+        console.log(
+          "use more than 70% memory, wait a lil bit to allow gc to cleanup stuff",
+        );
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+      // end optimization
     } catch (e) {
       console.error(e);
     }
   }
-  // v8.setFlagsFromString('--notrace-gc');
+  v8.setFlagsFromString('--notrace-gc');
 
   const signedFilesPath = '/cache/signed-uris';
   if (signedUris?.length) {
