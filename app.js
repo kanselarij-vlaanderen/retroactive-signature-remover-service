@@ -137,7 +137,7 @@ app.post('/', async function (req, res) {
         continue;
       }
 
-      if (isFileSigned(uri)) {
+      if (await isFileSigned(uri)) {
         signedUris.push(uri);
       }
 
