@@ -120,6 +120,8 @@ app.post('/', async function (req, res) {
 
   console.log(`Found ${uris.length} files, checking which ones are signed...`);
 
+  console.log(uris[uris.length - 1]);
+
   const signedUris = [];
   const tooLargeUris = [];
 
