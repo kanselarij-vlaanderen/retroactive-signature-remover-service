@@ -1,7 +1,7 @@
 import fs from 'fs';
 import readline from 'readline';
 import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
-import { isMuFileTooLarge, readMuFile } from './lib/file';
+import { isMuFileTooLarge } from './lib/file';
 import isFileSigned from './lib/signed-file';
 
 class PieceCache {
@@ -121,6 +121,7 @@ app.post('/', async function (req, res) {
 
   const signedUris = [];
   const tooLargeUris = [];
+
   for (const uri of uris) {
     // Find out which files are signed
     try {
@@ -129,8 +130,7 @@ app.post('/', async function (req, res) {
         continue;
       }
 
-      const pdfBytes = readMuFile(uri);
-      if (isFileSigned(pdfBytes)) {
+      if (isFileSigned(uri)) {
         signedUris.push(uri);
       }
     } catch (e) {
