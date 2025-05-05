@@ -1,10 +1,7 @@
 import fs from 'fs';
 import readline from 'readline';
 import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
-import { isMuFileTooLarge } from './lib/file';
 import isFileSigned from './lib/signed-file';
-import v8 from 'v8';
-import process from 'process';
 
 class PieceCache {
   DATE_START_KALEIDOS = new Date("2019-10-02");
@@ -84,10 +81,11 @@ WHERE {
     ?piece a dossier:Stuk ;
       prov:value ?virtualFile ;
       dct:created ?created .
-    ?file nie:dataSource ?virtualFile .
+    ?file nie:dataSource ?virtualFile ;
+      dct:format ?format .
     FILTER EXISTS { ?serie dossier:Collectie.bestaatUit ?piece }
     FILTER NOT EXISTS { ?piece sign:ongetekendStuk ?unsignedPiece }
-
+    FILTER (CONTAINS(LCASE(?format), "pdf"))
     FILTER (?created > ${sparqlEscapeDateTime(startDate)})
     FILTER (?created < ${sparqlEscapeDateTime(this.DATE_SIGNATURE_REMOVER_IN_USE)})
   }
@@ -126,55 +124,23 @@ app.post('/', async function (req, res) {
   console.log(uris.slice(uris.length - 3));
 
   const signedUris = [];
-  const tooLargeUris = [];
 
-  // v8.setFlagsFromString('--trace-gc');
   for (const uri of uris) {
     // Find out which files are signed
     try {
-      if (isMuFileTooLarge(uri)) {
-        tooLargeUris.push(uri);
-        continue;
-      }
-
       if (await isFileSigned(uri)) {
         signedUris.push(uri);
       }
-
-      // optimization
-      // give a chance for  gc to do its thing in case memory usage >= 70%
-      const memoryUsage = process.memoryUsage();
-      const memoryUsagePrc =
-        (memoryUsage.heapUsed / v8.getHeapStatistics().heap_size_limit) * 100;
-      console.log("consumed already ", memoryUsagePrc, "% of memory");
-      if (memoryUsagePrc > 70) {
-        console.log(
-          "use more than 70% memory, wait a lil bit to allow gc to cleanup stuff",
-        );
-        await new Promise((r) => setTimeout(r, 20_000));
-      }
-      // end optimization
     } catch (e) {
       console.error(e);
     }
   }
-  // v8.setFlagsFromString('--notrace-gc');
 
-  const signedFilesPath = '/cache/signed-uris';
   if (signedUris?.length) {
+    const signedFilesPath = '/cache/signed-uris';
     console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
     const stream = fs.createWriteStream(signedFilesPath);
     for (const uri of signedUris) {
-      stream.write(`${uri}\n`);
-    }
-    stream.close();
-  }
-
-  const tooLargePath = '/cache/too-large-uris';
-  if (tooLargeUris?.length) {
-    console.log(`Found ${tooLargeUris.length} files that were too large and weren't processed, storing in ${tooLargePath}. Manual checks are required for these.`);
-    const stream = fs.createWriteStream(tooLargePath);
-    for (const uri of tooLargeUris) {
       stream.write(`${uri}\n`);
     }
     stream.close();
