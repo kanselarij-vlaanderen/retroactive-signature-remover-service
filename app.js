@@ -2,6 +2,7 @@ import fs from 'fs';
 import readline from 'readline';
 import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
 import isFileSigned from './lib/signed-file';
+import { getPieceUriFromFile, getPieceUrlFromFile, reinsertPiece } from './lib/piece';
 
 class PieceCache {
   DATE_START_KALEIDOS = new Date("2019-10-02");
@@ -147,6 +148,44 @@ app.post('/', async function (req, res) {
   }
 
   res.sendStatus(204);
+});
+
+/**
+ * Use this endpoint to get a single URI's Kaleidos URL. By default this
+ * uses the ACC domain to generate the domain, but you can remove -test
+ * from the URL to get a link to PROD. You can use the URIs found in
+ * /cache/signed-uris for this endpoint.
+ * 
+ * Note that you need to URLEncode the URIs, since they have slashes and
+ * such, in bash you can use the following command:
+ * > curl http://localhost/piece-url/$(printf "physical-uri-goes-here" | jq -sRr '@uri')
+ */
+app.get('/piece-url/:physicalUri', async function (req, res) {
+  const physicalUri = req.params.physicalUri;
+
+  const pieceUrl = await getPieceUrlFromFile(physicalUri);
+
+  const response = {};
+  if (pieceUrl) {
+    response.url = pieceUrl;
+  } else {
+    response.message = 'No URL could be found for the given physical URI, check if the passed in URI is correct';
+  }
+
+  res.send(response);
+});
+
+app.post('/strip-piece/:physicalUri', async function (req, res) {
+  const physicalUri = req.params.physicalUri;
+
+  const pieceUri = await getPieceUriFromFile(physicalUri);
+
+  if (pieceUri) {
+    await reinsertPiece(pieceUri);
+    res.sendStatus(204);
+  } else {
+    res.sendStatus(404);
+  }
 });
 
 
