@@ -3,6 +3,7 @@ import readline from 'readline';
 import { app, query, errorHandler, sparqlEscapeDateTime } from 'mu';
 import isFileSigned from './lib/signed-file';
 import { getPieceUriFromFile, getPieceUrlFromFile, reinsertPiece } from './lib/piece';
+import { chunkify, sleep } from './lib/utils';
 
 class PieceCache {
   DATE_START_KALEIDOS = new Date("2019-10-02");
@@ -11,6 +12,7 @@ class PieceCache {
 
   cachePath = '/cache/pieces';
   lastCreatedPath = '/cache/last_created';
+  signedUrisPath = '/cache/signed-uris';
 
   async getPieceUris() {
     let uris = [];
@@ -38,6 +40,47 @@ class PieceCache {
     return uris;
   }
 
+  async getSignedFileUris() {
+    let signedUris = [];
+
+    if (fs.existsSync(this.signedUrisPath)) {
+      const stream = fs.createReadStream(this.signedUrisPath);
+      const rl = readline.createInterface({
+        input: stream,
+      });
+
+      for await (const line of rl) {
+        if (line) {
+          signedUris.push(line);
+        }
+      }
+    } else {
+      const uris = await this.getPieceUris();
+      console.log(`Found ${uris.length} files, checking which ones are signed...`);
+      for (const uri of uris) {
+        try {
+          if (await isFileSigned(uri)) {
+            signedUris.push(uri);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (signedUris?.length) {
+        console.log(`Found ${signedUris.length} signed files, storing in ${this.signedUrisPath}`);
+        const stream = fs.createWriteStream(this.signedUrisPath);
+        for (const uri of signedUris) {
+          stream.write(`${uri}\n`);
+        }
+        stream.close();
+      }
+    }
+
+    return signedUris;
+  }
+
+  
   async _readPiecesFromCache() {
     const uris = [];
     const stream = fs.createReadStream(this.cachePath);
@@ -118,36 +161,10 @@ LIMIT ${this.BATCH_SIZE}`;
 
 const pieceCache = new PieceCache();
 app.post('/', async function (req, res) {
-  const uris = await pieceCache.getPieceUris();
-
-  console.log(`Found ${uris.length} files, checking which ones are signed...`);
-
-  console.log(uris.slice(uris.length - 3));
-
-  const signedUris = [];
-
-  for (const uri of uris) {
-    // Find out which files are signed
-    try {
-      if (await isFileSigned(uri)) {
-        signedUris.push(uri);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  if (signedUris?.length) {
-    const signedFilesPath = '/cache/signed-uris';
-    console.log(`Found ${signedUris.length} signed files, storing in ${signedFilesPath}`);
-    const stream = fs.createWriteStream(signedFilesPath);
-    for (const uri of signedUris) {
-      stream.write(`${uri}\n`);
-    }
-    stream.close();
-  }
-
-  res.sendStatus(204);
+  const signedUris = await pieceCache.getSignedFileUris();
+  const message = `Found ${signedUris.length} files that are signed. Their physical URIs are stored in ${pieceCache.signedUrisPath}. Use this service's other methods to process them.`;
+  console.log(message);
+  res.send({ message });
 });
 
 /**
@@ -188,5 +205,42 @@ app.post('/strip-piece/:physicalUri', async function (req, res) {
   }
 });
 
+app.get('/signed-uris-csv', async function (req, res) {
+  const signedUris = await pieceCache.getSignedFileUris();
+  
+  const csvRows = [
+    ["physicalUri", "kaleidosUrl"],
+  ];
+
+  const chunks = chunkify(signedUris, 10);
+  for (const chunk of chunks) {
+    for (const uri of chunk) {
+      const pieceUrl = await getPieceUrlFromFile(uri);
+      csvRows.push([uri, pieceUrl]);
+    }
+  }
+
+  let csvContent = "";
+  csvRows.forEach((row) => {
+    const line = row.join(",");
+    csvContent += `${line}\r\n`;
+  });
+  res.send(csvContent);
+});
+
+app.post('/strip-all-pieces', async function (req, res) {
+  const signedUris = await pieceCache.getSignedFileUris();
+  
+  const chunks = chunkify(signedUris, 10);
+  for (const chunk of chunks) {
+    for (const uri of chunk) {
+      const pieceUri = await getPieceUriFromFile(uri);
+      await reinsertPiece(pieceUri);
+    }
+    await sleep(100);
+  }
+
+  res.sendStatus(204);
+});
 
 app.use(errorHandler);
